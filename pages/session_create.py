@@ -193,7 +193,7 @@ def render():
                     if st.button("👔 Go to Dashboard", use_container_width=True):
                         st.info("Navigate to 'Interviewer Dashboard' from the sidebar")
                 
-                logger.info(f"Session {session.id} created via UI")
+                logger.info(f"Session {session_data['id']} created via UI")
                 
             except Exception as e:
                 st.error(f"❌ Error creating session: {str(e)}")
