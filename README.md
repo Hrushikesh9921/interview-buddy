@@ -35,7 +35,7 @@ Interview Buddy is a sophisticated platform that enables candidates to practice 
 ### Prerequisites
 
 - Python 3.9 or higher
-- pip package manager
+- Conda (Anaconda or Miniconda)
 - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
 ### Installation
@@ -45,15 +45,10 @@ Interview Buddy is a sophisticated platform that enables candidates to practice 
    cd interview-buddy
    ```
 
-2. **Create and activate virtual environment**
+2. **Create and activate conda environment**
    ```bash
-   python -m venv venv
-   
-   # On macOS/Linux:
-   source venv/bin/activate
-   
-   # On Windows:
-   venv\Scripts\activate
+   conda create -n buddy python=3.11 -y
+   conda activate buddy
    ```
 
 3. **Install dependencies**

@@ -26,6 +26,10 @@ env/
 ENV/
 .venv
 
+# Conda
+.conda/
+*.egg-info/
+
 # IDE
 .vscode/
 .idea/
