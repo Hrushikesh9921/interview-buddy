@@ -122,7 +122,9 @@ def render_chat_interface():
                 "tokens_used": session.tokens_used,
                 "token_budget": session.token_budget,
                 "remaining": session.token_budget - session.tokens_used,
-                "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0
+                "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0,
+                "input_tokens": session.input_tokens,
+                "output_tokens": session.output_tokens
             }
         
         # Add custom CSS for better layout
@@ -201,6 +203,25 @@ def render_chat_interface():
                     <small style='color: #666;'>{token_info.get("percentage_used", 0):.0f}% used</small>
                 </div>
             """, unsafe_allow_html=True)
+            
+            # Token breakdown explanation
+            with st.expander("ℹ️ Token calculation", expanded=False):
+                st.markdown(f"""
+                **Why is the total higher than individual messages?**
+                
+                Each API call includes:
+                - System prompt (challenge description)
+                - **All previous messages** (entire conversation)
+                - Your new message
+                - AI's response
+                
+                **Your session breakdown:**
+                - 📥 Input tokens (prompts): **{token_info.get("input_tokens", 0):,}**
+                - 📤 Output tokens (AI responses): **{token_info.get("output_tokens", 0):,}**
+                - 📊 Total consumed: **{token_info.get("tokens_used", 0):,}**
+                
+                💡 *The cost grows with each exchange because OpenAI needs the full context!*
+                """)
             
             st.markdown("---")
             
