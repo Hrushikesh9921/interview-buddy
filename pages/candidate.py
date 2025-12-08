@@ -121,84 +121,124 @@ def render_chat_interface():
                 "tokens_used": session.tokens_used,
                 "token_budget": session.token_budget,
                 "remaining": session.token_budget - session.tokens_used,
-                "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0
+                "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0,
+                "input_tokens": session.input_tokens,
+                "output_tokens": session.output_tokens
             }
         
         # Add custom CSS for better layout
         st.markdown("""
             <style>
-            /* Hide sidebar for candidate interface */
-            [data-testid="stSidebar"] {
+            /* Hide navigation links */
+            [data-testid="stSidebarNav"] {
                 display: none;
             }
             
-            /* Full width layout - remove padding */
+            /* Full width layout - remove ALL padding */
             .main .block-container {
                 padding-top: 0.5rem;
-                padding-bottom: 1rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-bottom: 0rem;
+                padding-left: 0rem;
+                padding-right: 0rem;
                 max-width: 100%;
             }
             
-            /* Sticky header container */
-            .sticky-header-container {
-                position: sticky;
-                top: 0;
-                z-index: 999;
-                background-color: white;
-                padding: 10px 0;
-                border-bottom: 2px solid #e0e0e0;
-                margin-bottom: 10px;
+            /* Customize sidebar for resources */
+            [data-testid="stSidebar"] {
+                background-color: #f8f9fa;
             }
             
-            /* Make challenge compact */
-            .compact-challenge {
-                background-color: #f8f9fa;
-                padding: 8px 12px;
+            [data-testid="stSidebar"] > div:first-child {
+                padding: 12px;
+                padding-top: 0.5rem;
+            }
+            
+            /* Reduce top spacing in sidebar headings */
+            [data-testid="stSidebar"] h3 {
+                margin-top: 0rem;
+                padding-top: 0rem;
+            }
+            
+            /* Challenge styling in sidebar */
+            .challenge-box {
+                background-color: white;
+                padding: 12px;
                 border-radius: 6px;
                 border-left: 3px solid #0d6efd;
-                margin: 8px 0;
+                margin: 15px 0;
                 font-size: 13px;
-                line-height: 1.4;
-            }
-            
-            .compact-challenge strong {
-                color: #0d6efd;
-                font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+                line-height: 1.5;
             }
             </style>
         """, unsafe_allow_html=True)
         
-        # Sticky header container (wrapping header + resources + challenge)
-        st.markdown('<div class="sticky-header-container">', unsafe_allow_html=True)
-        
-        # Compact header with name and leave button
-        col1, col2 = st.columns([5, 1])
-        with col1:
-            st.markdown(f"**👤 {session_data['candidate_name']}**")
-        with col2:
-            if st.button("🚪 Leave", use_container_width=True, key="leave_btn"):
+        # Use native Streamlit sidebar for Resources and Challenge (always visible!)
+        with st.sidebar:
+            # Header with candidate name
+            st.markdown(f"### 👤 {session_data['candidate_name']}")
+            
+            if st.button("🚪 Leave Session", use_container_width=True, key="leave_btn"):
                 st.session_state.candidate_session_id = None
                 st.rerun()
+            
+            st.markdown("---")
+            
+            # Resources section
+            st.markdown("#### 📊 Resources")
+            
+            # Timer
+            timer_color = "#28a745" if timer_info.get("percentage_used", 0) < 75 else ("#fd7e14" if timer_info.get("percentage_used", 0) < 90 else "#dc3545")
+            st.markdown(f"""
+                <div style='margin: 10px 0;'>
+                    <strong>⏱️ Time Remaining:</strong><br>
+                    <span style='font-size: 24px; font-family: monospace; color: {timer_color};'>
+                        {timer_info.get("formatted_remaining", "00:00:00")}
+                    </span><br>
+                    <small style='color: #666;'>{timer_info.get("percentage_used", 0):.0f}% used</small>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Tokens
+            token_color = "#28a745" if token_info.get("percentage_used", 0) < 75 else ("#fd7e14" if token_info.get("percentage_used", 0) < 90 else "#dc3545")
+            st.markdown(f"""
+                <div style='margin: 10px 0;'>
+                    <strong>🎫 Tokens Remaining:</strong><br>
+                    <span style='font-size: 20px; color: {token_color};'>
+                        {token_info.get("remaining", 0):,} / {token_info.get("token_budget", 0):,}
+                    </span><br>
+                    <small style='color: #666;'>{token_info.get("percentage_used", 0):.0f}% used</small>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Token breakdown explanation
+            with st.expander("ℹ️ Token calculation", expanded=False):
+                st.markdown(f"""
+                **Why is the total higher than individual messages?**
+                
+                Each API call includes:
+                - System prompt (challenge description)
+                - **All previous messages** (entire conversation)
+                - Your new message
+                - AI's response
+                
+                **Your session breakdown:**
+                - 📥 Input tokens (prompts): **{token_info.get("input_tokens", 0):,}**
+                - 📤 Output tokens (AI responses): **{token_info.get("output_tokens", 0):,}**
+                - 📊 Total consumed: **{token_info.get("tokens_used", 0):,}**
+                
+                💡 *The cost grows with each exchange because OpenAI needs the full context!*
+                """)
+            
+            st.markdown("---")
+            
+            # Challenge section (SECURE - no XSS vulnerability!)
+            if session_data["challenge_text"]:
+                st.markdown("#### 📝 Challenge")
+                # Using st.info() to safely display user input without XSS risk
+                st.info(session_data["challenge_text"])
         
-        # Resource panel (compact)
-        render_resource_panel(timer_info, token_info)
-        
-        # Challenge section (compact and SAFE - no XSS risk)
-        if session_data["challenge_text"]:
-            st.markdown("**📝 Challenge:**")
-            st.info(session_data["challenge_text"])
-        
-        # Close sticky header container
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Chat interface
-        st.markdown("### 💬 Chat")
+        # Main content area: Chat
+        st.markdown("## 💬 Chat")
         
         # Check if chat should be disabled
         is_expired = timer_info.get("is_expired", False)
@@ -245,13 +285,7 @@ def render_chat_interface():
                     else:
                         st.error(f"❌ {error}")
         
-        # Auto-refresh indicator
-        st.markdown("---")
-        col1, col2, col3 = st.columns([2, 1, 2])
-        with col2:
-            if st.button("🔄 Refresh", use_container_width=True):
-                st.rerun()
-        
+        # Status indicator (no manual refresh needed)
         st.caption(f"💡 Last updated: {time.strftime('%H:%M:%S')}")
         
     except Exception as e:
