@@ -127,6 +127,11 @@ def render_chat_interface():
         # Add custom CSS for better layout
         st.markdown("""
             <style>
+            /* Hide navigation links (app, candidate, interviewer, session create) */
+            [data-testid="stSidebarNav"] {
+                display: none;
+            }
+            
             /* Full width layout - remove ALL padding */
             .main .block-container {
                 padding-top: 0.5rem;
