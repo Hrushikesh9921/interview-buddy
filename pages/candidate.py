@@ -16,8 +16,6 @@ from utils.logger import logger
 
 def render():
     """Render the candidate chat interface."""
-    st.title("👤 Candidate Interface")
-    
     # Session initialization
     if "candidate_session_id" not in st.session_state:
         st.session_state.candidate_session_id = None
@@ -27,10 +25,11 @@ def render():
     
     # If no session, show session ID input
     if not st.session_state.candidate_session_id:
+        st.title("👤 Candidate Interface")
         render_session_join()
         return
     
-    # Load and display session
+    # Load and display session (no title here to save space)
     render_chat_interface()
 
 
@@ -112,17 +111,6 @@ def render_chat_interface():
                 "message_count": session.message_count
             }
         
-        # Header with candidate name
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown(f"### Welcome, {session_data['candidate_name']}!")
-        with col2:
-            if st.button("🚪 Leave Session", use_container_width=True):
-                st.session_state.candidate_session_id = None
-                st.rerun()
-        
-        st.markdown("---")
-        
         # Get timer and token info
         with get_db_context() as db:
             session = db.query(Session).filter(Session.id == session_id).first()
@@ -136,27 +124,71 @@ def render_chat_interface():
                 "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0
             }
         
-        # Add custom CSS for sticky resource panel
+        # Add custom CSS for better layout
         st.markdown("""
             <style>
-            /* Make the resource panel sticky */
-            [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-                position: sticky;
-                top: 0;
-                z-index: 999;
-                background-color: white;
-                padding-top: 10px;
-                padding-bottom: 5px;
+            /* Reduce top padding */
+            .main .block-container {
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+                max-width: 100%;
+            }
+            
+            /* Make challenge compact */
+            .compact-challenge {
+                background-color: #f8f9fa;
+                padding: 8px 12px;
+                border-radius: 6px;
+                border-left: 3px solid #0d6efd;
+                margin: 8px 0;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+            
+            .compact-challenge strong {
+                color: #0d6efd;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            
+            /* Compact header styling */
+            .compact-header-row {
+                background-color: #f8f9fb;
+                padding: 8px 15px;
+                border-radius: 6px;
+                margin-bottom: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 14px;
             }
             </style>
         """, unsafe_allow_html=True)
         
-        # Resource panel (will be sticky due to CSS)
+        # Compact header with name and leave button
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.markdown(f"**👤 {session_data['candidate_name']}**")
+        with col2:
+            if st.button("🚪 Leave", use_container_width=True, key="leave_btn"):
+                st.session_state.candidate_session_id = None
+                st.rerun()
+        
+        # Resource panel (compact)
         render_resource_panel(timer_info, token_info)
+        
+        # Challenge section (compact)
+        if session_data["challenge_text"]:
+            st.markdown(f"""
+                <div class="compact-challenge">
+                    <strong>📝 Challenge:</strong> {session_data["challenge_text"]}
+                </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("---")
         
-        # Chat interface (NO challenge panel shown)
+        # Chat interface
         st.markdown("### 💬 Chat")
         
         # Check if chat should be disabled
