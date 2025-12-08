@@ -27,8 +27,8 @@ def render():
         render_session_join()
         return
     
-    # Auto-refresh every 3 seconds to keep timer updated (3000 milliseconds)
-    st_autorefresh(interval=3000, key="candidate_autorefresh")
+    # Auto-refresh every 1 second for smooth timer countdown (1000 milliseconds)
+    st_autorefresh(interval=1000, key="candidate_autorefresh")
     
     # Load and display session (no title here to save space)
     render_chat_interface()
