@@ -2,6 +2,7 @@
 Candidate chat interface page.
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import asyncio
 from typing import Optional
 import time
@@ -186,17 +187,61 @@ def render_chat_interface():
             # Resources section
             st.markdown("#### 📊 Resources")
             
-            # Timer
+            # Timer with auto-decrement using HTML component
             timer_color = "#28a745" if timer_info.get("percentage_used", 0) < 75 else ("#fd7e14" if timer_info.get("percentage_used", 0) < 90 else "#dc3545")
-            st.markdown(f"""
+            remaining_seconds = timer_info.get("remaining_seconds", 0)
+            timer_html = f"""
                 <div style='margin: 10px 0;'>
                     <strong>⏱️ Time Remaining:</strong><br>
-                    <span style='font-size: 24px; font-family: monospace; color: {timer_color};'>
+                    <span id='timer-display' style='font-size: 24px; font-family: monospace; color: {timer_color};'>
                         {timer_info.get("formatted_remaining", "00:00:00")}
                     </span><br>
-                    <small style='color: #666;'>{timer_info.get("percentage_used", 0):.0f}% used</small>
+                    <small style='color: #666;'><span id='timer-percentage'>{timer_info.get("percentage_used", 0):.0f}</span>% used</small>
                 </div>
-            """, unsafe_allow_html=True)
+                <script>
+                    let remainingSeconds = {remaining_seconds};
+                    let timeLimit = {timer_info.get("time_limit", 0)};
+                    
+                    function updateTimer() {{
+                        if (remainingSeconds > 0) {{
+                            remainingSeconds--;
+                            
+                            let hours = Math.floor(remainingSeconds / 3600);
+                            let minutes = Math.floor((remainingSeconds % 3600) / 60);
+                            let seconds = remainingSeconds % 60;
+                            
+                            let formattedTime = 
+                                String(hours).padStart(2, '0') + ':' + 
+                                String(minutes).padStart(2, '0') + ':' + 
+                                String(seconds).padStart(2, '0');
+                            
+                            let timerDisplay = document.getElementById('timer-display');
+                            if (timerDisplay) {{
+                                timerDisplay.textContent = formattedTime;
+                                
+                                // Update color based on percentage
+                                let percentageUsed = ((timeLimit - remainingSeconds) / timeLimit * 100);
+                                if (percentageUsed < 75) {{
+                                    timerDisplay.style.color = '#28a745';
+                                }} else if (percentageUsed < 90) {{
+                                    timerDisplay.style.color = '#fd7e14';
+                                }} else {{
+                                    timerDisplay.style.color = '#dc3545';
+                                }}
+                            }}
+                            
+                            let percentageDisplay = document.getElementById('timer-percentage');
+                            if (percentageDisplay) {{
+                                percentageDisplay.textContent = Math.round((timeLimit - remainingSeconds) / timeLimit * 100);
+                            }}
+                        }}
+                    }}
+                    
+                    // Update timer every second
+                    setInterval(updateTimer, 1000);
+                </script>
+            """
+            components.html(timer_html, height=80)
             
             # Tokens
             token_color = "#28a745" if token_info.get("percentage_used", 0) < 75 else ("#fd7e14" if token_info.get("percentage_used", 0) < 90 else "#dc3545")
