@@ -170,18 +170,9 @@ def show_create_session_page():
 
 
 def show_candidate_page():
-    """Display candidate interface page (placeholder)."""
-    st.title("👤 Candidate Interface")
-    st.info("💬 Chat interface will be implemented in Phase 3")
-    st.markdown("---")
-    st.markdown("""
-    **Features to be implemented:**
-    - Real-time chat with AI
-    - Timer countdown display
-    - Token usage tracking
-    - Challenge display
-    - Message history
-    """)
+    """Display candidate interface page."""
+    from pages import candidate
+    candidate.render()
 
 
 def show_interviewer_page():

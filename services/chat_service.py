@@ -14,6 +14,7 @@ from config.settings import get_settings
 from api.openai_client import OpenAIClient, get_openai_client
 from utils.token_counter import TokenCounter, get_token_counter
 from services.session_service import SessionService, get_session_service
+from services.timer_service import get_timer_service
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,8 @@ class ChatService:
         
         # Check time limit (if session is active)
         if session.status == SessionStatus.ACTIVE:
-            if self.session_service.is_session_expired(session.id):
+            timer_service = get_timer_service()
+            if timer_service.is_expired(session):
                 return False, "Session time has expired."
         
         return True, None
