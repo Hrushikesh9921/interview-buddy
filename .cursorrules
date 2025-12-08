@@ -1,0 +1,35 @@
+# Project Guidelines
+
+### Always work on granular tasks
+1. **Granular Tasks**
+   - Always complete granular taks which is testable
+   - redeploy the code and verify the changes in Cursor Browser
+   - Add tests around the added functionality and run
+   - Do not unnecessary refactor unless necessary
+
+2. **Understand the UI Flow**
+   - Open the actual application UI in Cursor Browser
+   - Manually perform the flow to understand current behavior
+   - Inspect elements to verify xpaths are still valid
+   - Check if UI has changed (new modals, different buttons, etc.)
+
+3. **Confirm with User if Unclear**
+   - If flow behavior is ambiguous, ask user for clarification
+   - If multiple approaches possible, discuss before implementing
+   - Don't assume - verify understanding of expected behavior
+
+### While Fixing
+4. **Make Minimum Changes**
+   - Fix only what's broken, don't refactor unrelated code
+   - Don't add features not requested
+   - Keep changes focused and reviewable
+
+5. **Reuse Existing Code**
+   - Search codebase for similar keywords/functions before creating new ones
+   - Use `grep` to find existing patterns
+   - Extend existing keywords rather than duplicating logic
+
+6. **Avoid Regression**
+   - Don't modify other test cases unless explicitly asked
+   - If changing shared keywords, verify they don't break other tests
+   - Run related tests after changes to confirm no regression
