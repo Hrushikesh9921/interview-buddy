@@ -127,11 +127,29 @@ def render_chat_interface():
         # Add custom CSS for better layout
         st.markdown("""
             <style>
-            /* Reduce top padding */
+            /* Hide sidebar for candidate interface */
+            [data-testid="stSidebar"] {
+                display: none;
+            }
+            
+            /* Full width layout - remove padding */
             .main .block-container {
-                padding-top: 1rem;
+                padding-top: 0.5rem;
                 padding-bottom: 1rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
                 max-width: 100%;
+            }
+            
+            /* Sticky header container */
+            .sticky-header-container {
+                position: sticky;
+                top: 0;
+                z-index: 999;
+                background-color: white;
+                padding: 10px 0;
+                border-bottom: 2px solid #e0e0e0;
+                margin-bottom: 10px;
             }
             
             /* Make challenge compact */
@@ -151,20 +169,11 @@ def render_chat_interface():
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
-            
-            /* Compact header styling */
-            .compact-header-row {
-                background-color: #f8f9fb;
-                padding: 8px 15px;
-                border-radius: 6px;
-                margin-bottom: 8px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 14px;
-            }
             </style>
         """, unsafe_allow_html=True)
+        
+        # Sticky header container (wrapping header + resources + challenge)
+        st.markdown('<div class="sticky-header-container">', unsafe_allow_html=True)
         
         # Compact header with name and leave button
         col1, col2 = st.columns([5, 1])
@@ -185,6 +194,9 @@ def render_chat_interface():
                     <strong>📝 Challenge:</strong> {session_data["challenge_text"]}
                 </div>
             """, unsafe_allow_html=True)
+        
+        # Close sticky header container
+        st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("---")
         
