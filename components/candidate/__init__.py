@@ -1,2 +1,1 @@
-"""Candidate interface components."""
-
+"""Candidate components."""
