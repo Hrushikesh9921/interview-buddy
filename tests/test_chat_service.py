@@ -33,6 +33,10 @@ def mock_session():
     session.challenge_text = "Solve the two-sum problem"
     session.status = SessionStatus.ACTIVE
     session.start_time = datetime.utcnow()
+    session.end_time = None
+    session.paused_at = None
+    session.total_paused_duration = 0
+    session.updated_at = datetime.utcnow()
     return session
 
 
@@ -159,18 +163,16 @@ class TestChatService:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_session
         mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         
-        # Mock OpenAI client
+        # Mock OpenAI client (using the custom format from OpenAIClient)
         mock_openai_response = {
-            "choices": [{
-                "message": {
-                    "content": "This is an AI response"
-                }
-            }],
+            "content": "This is an AI response",
             "usage": {
                 "prompt_tokens": 50,
                 "completion_tokens": 30,
                 "total_tokens": 80
-            }
+            },
+            "model": "gpt-4",
+            "finish_reason": "stop"
         }
         
         with patch('services.chat_service.get_openai_client') as mock_get_client, \

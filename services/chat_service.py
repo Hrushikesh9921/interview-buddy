@@ -232,8 +232,8 @@ Remember to track token usage and time limits."""
                 )
             )
             
-            # Extract response
-            ai_content = response["choices"][0]["message"]["content"]
+            # Extract response (OpenAIClient returns custom format)
+            ai_content = response["content"]
             
             # Get actual token usage from response
             usage = response.get("usage", {})
