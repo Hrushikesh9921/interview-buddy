@@ -418,6 +418,121 @@ class SessionService:
         
         return session
     
+    def extend_time(
+        self,
+        session_id: str,
+        additional_minutes: int,
+        db: Optional[DBSession] = None
+    ) -> Optional[Session]:
+        """
+        Extend the time limit for a session.
+        
+        Args:
+            session_id: Session ID
+            additional_minutes: Additional minutes to add
+            db: Database session (optional)
+            
+        Returns:
+            Updated Session object or None if not found
+        """
+        if db:
+            return self._extend_time_with_db(session_id, additional_minutes, db)
+        
+        with get_db_context() as db:
+            return self._extend_time_with_db(session_id, additional_minutes, db)
+    
+    def _extend_time_with_db(
+        self,
+        session_id: str,
+        additional_minutes: int,
+        db: DBSession
+    ) -> Optional[Session]:
+        """Internal method to extend time with database session."""
+        session = db.query(Session).filter(Session.id == session_id).first()
+        
+        if not session:
+            logger.error(f"Session {session_id} not found")
+            return None
+        
+        if session.status == SessionStatus.COMPLETED:
+            logger.warning(f"Cannot extend time for completed session {session_id}")
+            return session
+        
+        # Add additional time (convert minutes to seconds)
+        additional_seconds = additional_minutes * 60
+        session.time_limit += additional_seconds
+        session.updated_at = datetime.utcnow()
+        
+        # Log event
+        event = SessionEvent(
+            session_id=session_id,
+            event_type=EventType.TIME_EXTENDED,
+            description=f"Time extended by {additional_minutes} minutes"
+        )
+        db.add(event)
+        db.commit()
+        
+        logger.info(f"Extended time for session {session_id} by {additional_minutes} minutes")
+        
+        return session
+    
+    def extend_tokens(
+        self,
+        session_id: str,
+        additional_tokens: int,
+        db: Optional[DBSession] = None
+    ) -> Optional[Session]:
+        """
+        Extend the token budget for a session.
+        
+        Args:
+            session_id: Session ID
+            additional_tokens: Additional tokens to add
+            db: Database session (optional)
+            
+        Returns:
+            Updated Session object or None if not found
+        """
+        if db:
+            return self._extend_tokens_with_db(session_id, additional_tokens, db)
+        
+        with get_db_context() as db:
+            return self._extend_tokens_with_db(session_id, additional_tokens, db)
+    
+    def _extend_tokens_with_db(
+        self,
+        session_id: str,
+        additional_tokens: int,
+        db: DBSession
+    ) -> Optional[Session]:
+        """Internal method to extend tokens with database session."""
+        session = db.query(Session).filter(Session.id == session_id).first()
+        
+        if not session:
+            logger.error(f"Session {session_id} not found")
+            return None
+        
+        if session.status == SessionStatus.COMPLETED:
+            logger.warning(f"Cannot extend tokens for completed session {session_id}")
+            return session
+        
+        # Add additional tokens
+        session.token_budget += additional_tokens
+        session.updated_at = datetime.utcnow()
+        
+        # Log event
+        event = SessionEvent(
+            session_id=session_id,
+            event_type=EventType.TOKENS_EXTENDED,
+            description=f"Token budget extended by {additional_tokens:,} tokens"
+        )
+        db.add(event)
+        db.commit()
+        
+        logger.info(f"Extended token budget for session {session_id} by {additional_tokens:,} tokens")
+        
+        return session
+    
     def validate_session_access(
         self,
         session_id: str,

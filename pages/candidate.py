@@ -10,7 +10,6 @@ import time
 from models import get_db_context
 from models.models import Session, SessionStatus
 from services import get_chat_service, get_timer_service, get_session_service
-from components.candidate.resource_panel import render_resource_panel
 from components.shared.message_renderer import render_messages, render_message_input
 from utils.logger import logger
 
@@ -23,6 +22,24 @@ def render():
     
     if "last_refresh" not in st.session_state:
         st.session_state.last_refresh = time.time()
+    
+    # Check for session_id in URL query parameters
+    query_params = st.query_params
+    if "session_id" in query_params and not st.session_state.candidate_session_id:
+        url_session_id = query_params["session_id"]
+        # Validate the session exists
+        try:
+            with get_db_context() as db:
+                session = db.query(Session).filter(Session.id == url_session_id).first()
+                if session and session.status != SessionStatus.COMPLETED:
+                    st.session_state.candidate_session_id = url_session_id
+                    # Start session if needed
+                    session_service = get_session_service()
+                    if session.status == SessionStatus.CREATED:
+                        session_service.start_session(url_session_id, db)
+                    st.rerun()
+        except Exception as e:
+            logger.error(f"Error loading session from URL: {e}")
     
     # If no session, show session ID input
     if not st.session_state.candidate_session_id:
@@ -127,21 +144,71 @@ def render_chat_interface():
                 "output_tokens": session.output_tokens
             }
         
-        # Add custom CSS for better layout
+        # Add custom CSS for isolated candidate interface
         st.markdown("""
             <style>
-            /* Hide navigation links */
+            /* HIDE ALL NAVIGATION - Candidate should NOT see other pages */
             [data-testid="stSidebarNav"] {
-                display: none;
+                display: none !important;
             }
             
-            /* Full width layout - remove ALL padding */
+            /* Hide Navigation header */
+            [data-testid="stSidebar"] h1,
+            [data-testid="stSidebar"] [data-testid="stHeading"] {
+                display: none !important;
+            }
+            
+            /* Hide the collapse arrow for sidebar */
+            [data-testid="collapsedControl"] {
+                display: none !important;
+            }
+            
+            /* Hide Deploy button and menu */
+            [data-testid="stHeader"] {
+                display: none !important;
+            }
+            
+            header[data-testid="stHeader"] {
+                display: none !important;
+            }
+            
+            /* Hide top banner/toolbar */
+            .stDeployButton {
+                display: none !important;
+            }
+            
+            /* Proper chat area layout with padding */
             .main .block-container {
-                padding-top: 0.5rem;
-                padding-bottom: 0rem;
-                padding-left: 0rem;
-                padding-right: 0rem;
+                padding-top: 1.5rem;
+                padding-bottom: 1rem;
+                padding-left: 2.5rem;
+                padding-right: 2.5rem;
                 max-width: 100%;
+            }
+            
+            /* Better spacing for chat content */
+            .main .block-container > div {
+                gap: 1rem;
+            }
+            
+            /* Chat messages styling */
+            [data-testid="stChatMessageContainer"] {
+                padding: 1rem 0;
+            }
+            
+            /* Chat input styling */
+            [data-testid="stChatInput"] {
+                margin-top: 1rem;
+            }
+            
+            /* Improve message spacing */
+            .stChatMessage {
+                margin-bottom: 1rem;
+            }
+            
+            /* Better alignment for chat area */
+            section[data-testid="stVerticalBlock"] > div {
+                gap: 1rem;
             }
             
             /* Customize sidebar for resources */
@@ -187,8 +254,9 @@ def render_chat_interface():
             # Resources section
             st.markdown("#### 📊 Resources")
             
-            # Timer with auto-decrement using HTML component
-            timer_color = "#28a745" if timer_info.get("percentage_used", 0) < 75 else ("#fd7e14" if timer_info.get("percentage_used", 0) < 90 else "#dc3545")
+            # Timer with auto-decrement and progress bar
+            timer_percentage = timer_info.get("percentage_used", 0)
+            timer_color = "#28a745" if timer_percentage < 75 else ("#fd7e14" if timer_percentage < 90 else "#dc3545")
             remaining_seconds = timer_info.get("remaining_seconds", 0)
             timer_html = f"""
                 <div style='margin: 10px 0;'>
@@ -196,7 +264,10 @@ def render_chat_interface():
                     <span id='timer-display' style='font-size: 24px; font-family: monospace; color: {timer_color};'>
                         {timer_info.get("formatted_remaining", "00:00:00")}
                     </span><br>
-                    <small style='color: #666;'><span id='timer-percentage'>{timer_info.get("percentage_used", 0):.0f}</span>% used</small>
+                    <div style='width: 100%; background-color: #e0e0e0; border-radius: 10px; height: 8px; margin: 8px 0;'>
+                        <div id='timer-progress' style='width: {100 - timer_percentage}%; background-color: {timer_color}; height: 100%; border-radius: 10px; transition: width 1s linear, background-color 0.3s;'></div>
+                    </div>
+                    <small style='color: #666;'><span id='timer-percentage'>{timer_percentage:.0f}</span>% used</small>
                 </div>
                 <script>
                     let remainingSeconds = {remaining_seconds};
@@ -215,24 +286,32 @@ def render_chat_interface():
                                 String(minutes).padStart(2, '0') + ':' + 
                                 String(seconds).padStart(2, '0');
                             
+                            let percentageUsed = ((timeLimit - remainingSeconds) / timeLimit * 100);
+                            let percentageRemaining = 100 - percentageUsed;
+                            
+                            // Determine color
+                            let color = '#28a745';
+                            if (percentageUsed >= 90) {{
+                                color = '#dc3545';
+                            }} else if (percentageUsed >= 75) {{
+                                color = '#fd7e14';
+                            }}
+                            
                             let timerDisplay = document.getElementById('timer-display');
                             if (timerDisplay) {{
                                 timerDisplay.textContent = formattedTime;
-                                
-                                // Update color based on percentage
-                                let percentageUsed = ((timeLimit - remainingSeconds) / timeLimit * 100);
-                                if (percentageUsed < 75) {{
-                                    timerDisplay.style.color = '#28a745';
-                                }} else if (percentageUsed < 90) {{
-                                    timerDisplay.style.color = '#fd7e14';
-                                }} else {{
-                                    timerDisplay.style.color = '#dc3545';
-                                }}
+                                timerDisplay.style.color = color;
                             }}
                             
                             let percentageDisplay = document.getElementById('timer-percentage');
                             if (percentageDisplay) {{
-                                percentageDisplay.textContent = Math.round((timeLimit - remainingSeconds) / timeLimit * 100);
+                                percentageDisplay.textContent = Math.round(percentageUsed);
+                            }}
+                            
+                            let progressBar = document.getElementById('timer-progress');
+                            if (progressBar) {{
+                                progressBar.style.width = percentageRemaining + '%';
+                                progressBar.style.backgroundColor = color;
                             }}
                         }}
                     }}
@@ -241,19 +320,45 @@ def render_chat_interface():
                     setInterval(updateTimer, 1000);
                 </script>
             """
-            components.html(timer_html, height=80)
+            components.html(timer_html, height=100)
             
-            # Tokens
-            token_color = "#28a745" if token_info.get("percentage_used", 0) < 75 else ("#fd7e14" if token_info.get("percentage_used", 0) < 90 else "#dc3545")
+            # Get timer warning from service
+            timer_service = get_timer_service()
+            with get_db_context() as db:
+                session_obj = db.query(Session).filter(Session.id == session_id).first()
+                timer_warning = timer_service.get_warning_message(session_obj)
+            
+            if timer_warning:
+                st.warning(timer_warning)
+            
+            # Tokens with progress bar
+            token_percentage = token_info.get("percentage_used", 0)
+            token_color = "#28a745" if token_percentage < 75 else ("#fd7e14" if token_percentage < 90 else "#dc3545")
             st.markdown(f"""
                 <div style='margin: 10px 0;'>
                     <strong>🎫 Tokens Remaining:</strong><br>
                     <span style='font-size: 20px; color: {token_color};'>
                         {token_info.get("remaining", 0):,} / {token_info.get("token_budget", 0):,}
                     </span><br>
-                    <small style='color: #666;'>{token_info.get("percentage_used", 0):.0f}% used</small>
+                    <div style='width: 100%; background-color: #e0e0e0; border-radius: 10px; height: 8px; margin: 8px 0;'>
+                        <div style='width: {100 - token_percentage}%; background-color: {token_color}; height: 100%; border-radius: 10px;'></div>
+                    </div>
+                    <small style='color: #666;'>{token_percentage:.0f}% used</small>
                 </div>
             """, unsafe_allow_html=True)
+            
+            # Get token warning and estimated queries from service
+            from services import get_token_service
+            token_service = get_token_service()
+            with get_db_context() as db:
+                token_warning = token_service.get_warning_message(session_id, db)
+                estimated_queries = token_service.estimate_queries_remaining(session_id, db)
+            
+            if token_warning:
+                st.warning(token_warning)
+            
+            if estimated_queries is not None and estimated_queries > 0:
+                st.info(f"📊 Estimated queries remaining: **~{estimated_queries}**")
             
             # Token breakdown explanation
             with st.expander("ℹ️ Token calculation", expanded=False):

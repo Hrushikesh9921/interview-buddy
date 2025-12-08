@@ -41,10 +41,10 @@ def render():
         with col1:
             time_limit_minutes = st.number_input(
                 "Time Limit (minutes) *",
-                min_value=5,
+                min_value=1,
                 max_value=180,
                 value=60,
-                step=5,
+                step=1,
                 help="Maximum duration for the interview"
             )
         
@@ -97,8 +97,8 @@ def render():
         if candidate_email and "@" not in candidate_email:
             errors.append("Invalid email address")
         
-        if time_limit_minutes < 5:
-            errors.append("Time limit must be at least 5 minutes")
+        if time_limit_minutes < 1:
+            errors.append("Time limit must be at least 1 minute")
         
         if token_budget < 1000:
             errors.append("Token budget must be at least 1000")
@@ -142,10 +142,15 @@ def render():
                 st.markdown("---")
                 st.subheader("📊 Session Details")
                 
-                # Session ID (prominent display)
+                # Session ID and Direct Link (prominent display)
                 st.markdown("### 🔑 Session ID")
                 st.code(session_data["id"], language=None)
-                st.caption("Share this ID with the candidate to join the session")
+                
+                # Direct candidate link
+                st.markdown("### 🔗 Direct Candidate Link")
+                candidate_url = f"http://localhost:8501/candidate?session_id={session_data['id']}"
+                st.code(candidate_url, language=None)
+                st.caption("⭐ Share this link with the candidate for instant access (no ID entry needed!)")
                 
                 # Session info
                 col1, col2, col3 = st.columns(3)
@@ -176,10 +181,15 @@ def render():
                 st.markdown("---")
                 st.markdown("### 🎯 Next Steps")
                 st.markdown("""
-                1. **Share the Session ID** with the candidate
+                **Option 1: Direct Link (Recommended)** ⭐
+                1. Share the **Direct Candidate Link** above
+                2. Candidate clicks the link and automatically joins
+                3. Monitor progress from **Interviewer Dashboard**
+                
+                **Option 2: Manual Entry**
+                1. Share the **Session ID** with the candidate
                 2. Candidate navigates to **Candidate Interface** page
                 3. Candidate enters the Session ID to join
-                4. Monitor progress from **Interviewer Dashboard**
                 """)
                 
                 # Action buttons

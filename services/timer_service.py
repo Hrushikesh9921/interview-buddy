@@ -197,12 +197,64 @@ class TimerService:
         remaining = self.get_remaining_time(session)
         percentage_remaining = (remaining / session.time_limit) * 100 if session.time_limit > 0 else 100
         
-        if percentage_remaining <= 10:
-            return "critical"
+        if percentage_remaining <= 5:
+            return "critical"  # 5% or less - urgent
+        elif percentage_remaining <= 10:
+            return "critical"  # 10% or less - critical
         elif percentage_remaining <= 25:
-            return "warning"
+            return "warning"   # 25% or less - warning
         else:
-            return "normal"
+            return "normal"    # Above 25% - normal
+    
+    def get_warning_message(self, session: Session) -> Optional[str]:
+        """
+        Get warning message based on remaining time.
+        
+        Returns:
+            Warning message string or None if no warning needed
+        """
+        if self.is_expired(session):
+            return "⏰ Time's up! Your session has expired."
+        
+        remaining = self.get_remaining_time(session)
+        percentage_remaining = (remaining / session.time_limit) * 100 if session.time_limit > 0 else 100
+        
+        if percentage_remaining <= 5:
+            minutes_left = remaining // 60
+            return f"🚨 URGENT: Only {minutes_left} minute(s) remaining!"
+        elif percentage_remaining <= 10:
+            minutes_left = remaining // 60
+            return f"⚠️ Critical: {minutes_left} minute(s) left. Wrap up soon!"
+        elif percentage_remaining <= 25:
+            minutes_left = remaining // 60
+            return f"⏳ Warning: {minutes_left} minute(s) remaining."
+        
+        return None
+    
+    def should_show_warning(self, session: Session, last_warning_percentage: Optional[float] = None) -> bool:
+        """
+        Determine if a warning should be shown based on thresholds.
+        
+        Args:
+            session: Session object
+            last_warning_percentage: Last percentage at which warning was shown
+            
+        Returns:
+            True if warning should be shown
+        """
+        remaining = self.get_remaining_time(session)
+        percentage_remaining = (remaining / session.time_limit) * 100 if session.time_limit > 0 else 100
+        
+        # Define warning thresholds
+        thresholds = [25, 10, 5]
+        
+        # Check if we've crossed a new threshold
+        for threshold in thresholds:
+            if percentage_remaining <= threshold:
+                if last_warning_percentage is None or last_warning_percentage > threshold:
+                    return True
+        
+        return False
 
 
 # Global service instance

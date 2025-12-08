@@ -327,6 +327,102 @@ class TokenService:
             return True
         
         return remaining <= 0
+    
+    def get_warning_level(
+        self,
+        session_id: str,
+        db: Optional[DBSession] = None
+    ) -> str:
+        """
+        Get warning level based on remaining token percentage.
+        
+        Args:
+            session_id: Session ID
+            db: Database session (optional)
+            
+        Returns:
+            "normal", "warning", "critical", or "exhausted"
+        """
+        stats = self.get_usage_stats(session_id, db)
+        
+        if not stats:
+            return "normal"
+        
+        percentage_remaining = 100 - stats["percentage_used"]
+        
+        if percentage_remaining <= 0:
+            return "exhausted"
+        elif percentage_remaining <= 5:
+            return "critical"  # 5% or less - urgent
+        elif percentage_remaining <= 10:
+            return "critical"  # 10% or less - critical
+        elif percentage_remaining <= 25:
+            return "warning"   # 25% or less - warning
+        else:
+            return "normal"    # Above 25% - normal
+    
+    def get_warning_message(
+        self,
+        session_id: str,
+        db: Optional[DBSession] = None
+    ) -> Optional[str]:
+        """
+        Get warning message based on remaining tokens.
+        
+        Args:
+            session_id: Session ID
+            db: Database session (optional)
+            
+        Returns:
+            Warning message string or None if no warning needed
+        """
+        stats = self.get_usage_stats(session_id, db)
+        
+        if not stats:
+            return None
+        
+        remaining = stats["remaining_budget"]
+        percentage_remaining = 100 - stats["percentage_used"]
+        
+        if remaining <= 0:
+            return "🎫 Token budget exhausted! No more queries available."
+        elif percentage_remaining <= 5:
+            return f"🚨 URGENT: Only {remaining:,} tokens remaining!"
+        elif percentage_remaining <= 10:
+            return f"⚠️ Critical: {remaining:,} tokens left. Use wisely!"
+        elif percentage_remaining <= 25:
+            return f"⏳ Warning: {remaining:,} tokens remaining."
+        
+        return None
+    
+    def estimate_queries_remaining(
+        self,
+        session_id: str,
+        db: Optional[DBSession] = None
+    ) -> Optional[int]:
+        """
+        Estimate how many more queries can be made based on average usage.
+        
+        Args:
+            session_id: Session ID
+            db: Database session (optional)
+            
+        Returns:
+            Estimated number of queries remaining, or None if cannot estimate
+        """
+        stats = self.get_usage_stats(session_id, db)
+        
+        if not stats or stats["message_count"] == 0:
+            return None
+        
+        avg_tokens = stats["avg_tokens_per_message"]
+        remaining = stats["remaining_budget"]
+        
+        if avg_tokens <= 0:
+            return None
+        
+        estimated_queries = int(remaining / avg_tokens)
+        return max(0, estimated_queries)
 
 
 # Global token service instance
