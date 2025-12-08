@@ -136,19 +136,27 @@ def render_chat_interface():
                 "percentage_used": (session.tokens_used / session.token_budget * 100) if session.token_budget > 0 else 0
             }
         
-        # Resource panel
+        # Add custom CSS for sticky resource panel
+        st.markdown("""
+            <style>
+            /* Make the resource panel sticky */
+            [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
+                position: sticky;
+                top: 0;
+                z-index: 999;
+                background-color: white;
+                padding-top: 10px;
+                padding-bottom: 5px;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # Resource panel (will be sticky due to CSS)
         render_resource_panel(timer_info, token_info)
         
         st.markdown("---")
         
-        # Challenge display (if exists)
-        if session_data["challenge_text"]:
-            with st.expander("📝 Challenge", expanded=False):
-                st.markdown(session_data["challenge_text"])
-        
-        st.markdown("---")
-        
-        # Chat interface
+        # Chat interface (NO challenge panel shown)
         st.markdown("### 💬 Chat")
         
         # Check if chat should be disabled

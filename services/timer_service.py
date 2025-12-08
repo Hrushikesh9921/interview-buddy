@@ -37,11 +37,18 @@ class TimerInfo:
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
+        # Format time as HH:MM:SS
+        hours = self.remaining_seconds // 3600
+        minutes = (self.remaining_seconds % 3600) // 60
+        seconds = self.remaining_seconds % 60
+        formatted_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
         return {
             "session_id": self.session_id,
             "state": self.state.value,
             "elapsed_seconds": self.elapsed_seconds,
             "remaining_seconds": self.remaining_seconds,
+            "formatted_remaining": formatted_time,
             "time_limit": self.time_limit,
             "is_expired": self.is_expired,
             "percentage_used": round((self.elapsed_seconds / self.time_limit * 100), 2) if self.time_limit > 0 else 0,
