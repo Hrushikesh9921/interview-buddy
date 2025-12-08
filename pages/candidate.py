@@ -261,14 +261,8 @@ def render_chat_interface():
                     else:
                         st.error(f"❌ {error}")
         
-        # Auto-refresh indicator
-        st.markdown("---")
-        col1, col2, col3 = st.columns([2, 1, 2])
-        with col2:
-            if st.button("🔄 Refresh", use_container_width=True):
-                st.rerun()
-        
-        st.caption(f"💡 Last updated: {time.strftime('%H:%M:%S')}")
+        # Auto-refresh indicator (page refreshes automatically every 1 second)
+        st.caption(f"💡 Auto-refreshing • Last updated: {time.strftime('%H:%M:%S')}")
         
     except Exception as e:
         st.error(f"❌ Error loading chat interface: {e}")
