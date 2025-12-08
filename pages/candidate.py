@@ -5,6 +5,7 @@ import streamlit as st
 import asyncio
 from typing import Optional
 import time
+from streamlit_autorefresh import st_autorefresh
 
 from models import get_db_context
 from models.models import Session, SessionStatus
@@ -20,14 +21,14 @@ def render():
     if "candidate_session_id" not in st.session_state:
         st.session_state.candidate_session_id = None
     
-    if "last_refresh" not in st.session_state:
-        st.session_state.last_refresh = time.time()
-    
     # If no session, show session ID input
     if not st.session_state.candidate_session_id:
         st.title("👤 Candidate Interface")
         render_session_join()
         return
+    
+    # Auto-refresh every 3 seconds to keep timer updated (3000 milliseconds)
+    st_autorefresh(interval=3000, key="candidate_autorefresh")
     
     # Load and display session (no title here to save space)
     render_chat_interface()
