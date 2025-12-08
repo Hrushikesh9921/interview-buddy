@@ -164,18 +164,9 @@ def show_home_page():
 
 
 def show_create_session_page():
-    """Display session creation page (placeholder)."""
-    st.title("➕ Create Interview Session")
-    st.info("📝 Session creation interface will be implemented in Phase 2")
-    st.markdown("---")
-    st.markdown("""
-    **Features to be implemented:**
-    - Candidate information input
-    - Time limit configuration
-    - Token budget settings
-    - Challenge selection
-    - Session ID generation
-    """)
+    """Display session creation page."""
+    from pages import session_create
+    session_create.render()
 
 
 def show_candidate_page():
