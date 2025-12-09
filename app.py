@@ -18,9 +18,14 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Custom CSS for better styling
+    # Custom CSS for better styling and hiding default Streamlit navigation
     st.markdown("""
         <style>
+        /* Hide default Streamlit page navigation */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
+        }
+        
         .main-header {
             font-size: 2.5rem;
             font-weight: bold;
@@ -176,18 +181,9 @@ def show_candidate_page():
 
 
 def show_interviewer_page():
-    """Display interviewer dashboard page (placeholder)."""
-    st.title("👔 Interviewer Dashboard")
-    st.info("📊 Dashboard will be implemented in Phase 5")
-    st.markdown("---")
-    st.markdown("""
-    **Features to be implemented:**
-    - Active sessions list
-    - Real-time monitoring
-    - Session controls
-    - Resource metrics
-    - Conversation view
-    """)
+    """Display interviewer dashboard page."""
+    from pages import interviewer
+    interviewer.render()
 
 
 def show_analytics_page():
