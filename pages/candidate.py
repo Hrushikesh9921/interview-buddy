@@ -41,6 +41,49 @@ def render():
         except Exception as e:
             logger.error(f"Error loading session from URL: {e}")
     
+    # Check if user left the session - show goodbye page
+    if st.session_state.get("session_left", False):
+        # Hide sidebar for thank you page
+        st.markdown("""
+            <style>
+            /* Hide sidebar completely on goodbye page */
+            [data-testid="stSidebar"] {
+                display: none !important;
+            }
+            
+            /* Make main content full width */
+            .main .block-container {
+                padding-left: 5rem !important;
+                padding-right: 5rem !important;
+                max-width: 100% !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # Simple, clean goodbye message
+        st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.success("### ✅ Thank you for participating!")
+            st.info("Your interview session has ended.")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            st.markdown("""
+                <div style="text-align: center; padding: 20px;">
+                    <p style="font-size: 16px; color: #555; margin-bottom: 15px;">
+                        You may now close this browser tab.
+                    </p>
+                    <p style="font-size: 13px; color: #999;">
+                        Press <kbd style="background: #f0f0f0; padding: 3px 8px; border-radius: 3px; border: 1px solid #ccc; font-family: monospace;">Ctrl+W</kbd> or 
+                        <kbd style="background: #f0f0f0; padding: 3px 8px; border-radius: 3px; border: 1px solid #ccc; font-family: monospace;">Cmd+W</kbd> to close
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        st.stop()
+    
     # If no session, show session ID input
     if not st.session_state.candidate_session_id:
         st.title("👤 Candidate Interface")
@@ -222,9 +265,52 @@ def render_chat_interface():
                 padding: 1rem 0;
             }
             
-            /* Chat input styling */
+            /* Chat input styling - FULL WIDTH like messages */
             [data-testid="stChatInput"] {
                 margin-top: 1rem;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            /* Fix chat input container to be full width */
+            .stChatInput {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            /* Bottom container full width */
+            [data-testid="stBottom"] {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            [data-testid="stBottom"] > div {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            /* Chat input inner div full width */
+            div.stChatInput > div {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            /* Chat input form/textarea full width */
+            [data-testid="stChatInput"] > div,
+            [data-testid="stChatInput"] form,
+            [data-testid="stChatInput"] textarea {
+                width: 100% !important;
+                max-width: 100% !important;
             }
             
             /* Improve message spacing */
@@ -313,8 +399,9 @@ def render_chat_interface():
             # Header with candidate name
             st.markdown(f"### 👤 {session_data['candidate_name']}")
             
-            if st.button("🚪 Leave Session", use_container_width=True, key="leave_btn"):
-                st.session_state.candidate_session_id = None
+            # Leave Session with confirmation
+            if st.button("🚪 Leave Session", use_container_width=True, key="leave_btn", type="secondary"):
+                st.session_state.show_leave_confirmation = True
                 st.rerun()
             
             st.markdown("---")
@@ -454,6 +541,34 @@ def render_chat_interface():
                 st.markdown("#### 📝 Challenge")
                 # Using st.info() to safely display user input without XSS risk
                 st.info(session_data["challenge_text"])
+        
+        # Handle Leave Session Confirmation Modal
+        if st.session_state.get("show_leave_confirmation", False):
+            # Show confirmation dialog using columns and expander
+            st.markdown("---")
+            st.warning("### ⚠️ Leave Session?")
+            st.markdown("Are you sure you want to leave this interview session? Your progress will be saved.")
+            
+            col1, col2, col3 = st.columns([1, 1, 2])
+            with col1:
+                if st.button("✅ Yes, Leave", use_container_width=True, type="primary", key="confirm_leave"):
+                    # Mark session as completed and clear
+                    session_service = get_session_service()
+                    with get_db_context() as db:
+                        session_service.end_session(session_id, db)
+                    
+                    st.session_state.candidate_session_id = None
+                    st.session_state.show_leave_confirmation = False
+                    st.session_state.session_left = True
+                    st.rerun()
+            
+            with col2:
+                if st.button("❌ Cancel", use_container_width=True, type="secondary", key="cancel_leave"):
+                    st.session_state.show_leave_confirmation = False
+                    st.rerun()
+            
+            st.markdown("---")
+            st.stop()
         
         # Main content area: Chat
         st.markdown("## 💬 Chat")
