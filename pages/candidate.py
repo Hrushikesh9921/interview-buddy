@@ -158,9 +158,35 @@ def render_chat_interface():
                 display: none !important;
             }
             
-            /* Hide the collapse arrow for sidebar */
+            /* Hide sidebar collapse button completely */
             [data-testid="collapsedControl"] {
                 display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+            
+            /* Hide any button that might collapse sidebar */
+            button[kind="header"] {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+            
+            /* Keep sidebar locked open */
+            section[data-testid="stSidebar"] {
+                display: block !important;
+                width: 21rem !important;
+                min-width: 21rem !important;
+            }
+            
+            /* Prevent sidebar from being collapsible */
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                display: block !important;
+            }
+            
+            [data-testid="stSidebar"][aria-expanded="false"] {
+                display: block !important;
+                width: 21rem !important;
             }
             
             /* Hide Deploy button and menu */
@@ -238,6 +264,48 @@ def render_chat_interface():
                 line-height: 1.5;
             }
             </style>
+            
+            <script>
+                // Prevent sidebar from being collapsed - runs continuously
+                function preventSidebarCollapse() {
+                    // Find and disable all collapse buttons
+                    const collapseButtons = document.querySelectorAll('[data-testid="collapsedControl"], button[kind="header"]');
+                    collapseButtons.forEach(button => {
+                        button.style.display = 'none';
+                        button.style.pointerEvents = 'none';
+                        button.disabled = true;
+                        // Remove click listeners
+                        button.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                        };
+                    });
+                    
+                    // Keep sidebar open at all times
+                    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+                    if (sidebar) {
+                        sidebar.style.display = 'block';
+                        sidebar.style.width = '21rem';
+                        sidebar.setAttribute('aria-expanded', 'true');
+                    }
+                }
+                
+                // Run immediately
+                preventSidebarCollapse();
+                
+                // Watch for DOM changes and prevent collapse
+                const observer = new MutationObserver(preventSidebarCollapse);
+                observer.observe(document.body, { 
+                    childList: true, 
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['aria-expanded', 'style', 'class']
+                });
+                
+                // Run every 200ms as failsafe
+                setInterval(preventSidebarCollapse, 200);
+            </script>
         """, unsafe_allow_html=True)
         
         # Use native Streamlit sidebar for Resources and Challenge (always visible!)

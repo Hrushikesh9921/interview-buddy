@@ -327,7 +327,7 @@ class TokenService:
             return True
         
         return remaining <= 0
-    
+
     def get_warning_level(
         self,
         session_id: str,
