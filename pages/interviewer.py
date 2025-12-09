@@ -27,7 +27,7 @@ def render():
     with col1:
         st.markdown("### 📊 Active Sessions")
     with col2:
-        auto_refresh = st.checkbox("🔄 Auto-refresh", value=True, key="auto_refresh")
+        auto_refresh = st.checkbox("🔄 Auto-refresh", value=False, key="auto_refresh")
     with col3:
         if st.button("🔄 Refresh Now", use_container_width=True):
             st.rerun()
@@ -35,7 +35,8 @@ def render():
     # Get all active sessions within db context
     session_service = get_session_service()
     with get_db_context() as db:
-        all_sessions = session_service.list_sessions(status=None, limit=100, db=db)
+        # Only query started sessions to reduce DB load
+        all_sessions = session_service.list_sessions(status=None, limit=50, db=db)
         
         # Filter active/paused sessions (only those that have started) and create simple dicts
         active_sessions = []
@@ -88,9 +89,9 @@ def render():
             st.markdown("### 👈 Select a session to monitor")
             st.info("Click on any session from the list to view live conversation and metrics.")
     
-    # Auto-refresh every 5 seconds if enabled
+    # Auto-refresh every 15 seconds if enabled (reduced from 5s for better performance)
     if auto_refresh:
-        time.sleep(5)
+        time.sleep(15)
         st.rerun()
 
 

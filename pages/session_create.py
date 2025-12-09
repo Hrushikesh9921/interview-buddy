@@ -5,6 +5,7 @@ import streamlit as st
 from services import SessionConfig, get_session_service
 from config.settings import settings
 from utils.logger import logger
+from models import get_db_context
 
 
 def render():
@@ -70,12 +71,133 @@ def render():
         st.markdown("---")
         st.subheader("📝 Challenge")
         
-        challenge_text = st.text_area(
-            "Challenge Description",
-            placeholder="Enter the coding challenge or interview question here...\n\nExample:\nWrite a function that finds the two numbers in an array that add up to a target sum.",
-            height=200,
-            help="The challenge or problem the candidate should solve"
+        # Challenge selection mode
+        challenge_mode = st.radio(
+            "Challenge Source",
+            options=["📚 Template Library", "✏️ Custom Challenge"],
+            horizontal=True,
+            help="Select from pre-built templates or create your own challenge"
         )
+        
+        selected_challenge_id = None
+        challenge_text = None
+        
+        if challenge_mode == "📚 Template Library":
+            # Load challenge service and templates
+            from services import get_challenge_service
+            from config.constants import ChallengeCategory, ChallengeDifficulty
+            
+            challenge_service = get_challenge_service()
+            with get_db_context() as db:
+                all_templates_objs = challenge_service.get_all_templates(db)
+                
+                # Convert to dicts to avoid detached instance errors
+                all_templates = []
+                for t in all_templates_objs:
+                    template_dict = {
+                        "id": t.id,
+                        "title": t.title,
+                        "description": t.description,
+                        "category": t.category,
+                        "difficulty": t.difficulty,
+                        "instructions": t.instructions,
+                        "starter_code": t.starter_code,
+                        "test_cases": t.test_cases,
+                        "tags": t.tags,
+                        "metadata": t.metadata,
+                        "estimated_duration": t.estimated_duration
+                    }
+                    all_templates.append(template_dict)
+            
+            if not all_templates:
+                st.warning("⚠️ No challenge templates found. Run `python scripts/setup_challenges.py` to load templates.")
+                st.info("For now, use Custom Challenge mode.")
+            else:
+                # Category filter
+                col_cat, col_diff = st.columns(2)
+                
+                with col_cat:
+                    categories = ["ALL"] + [c.value.replace('_', ' ').title() for c in ChallengeCategory]
+                    selected_category = st.selectbox(
+                        "Category",
+                        categories,
+                        help="Filter by challenge category"
+                    )
+                
+                with col_diff:
+                    difficulties = ["ALL"] + [d.value.capitalize() for d in ChallengeDifficulty]
+                    selected_difficulty = st.selectbox(
+                        "Difficulty",
+                        difficulties,
+                        help="Filter by difficulty level"
+                    )
+                
+                # Filter templates
+                filtered_templates = all_templates
+                
+                if selected_category != "ALL":
+                    # Convert display name back to enum value
+                    cat_value = selected_category.replace(' ', '_').upper()
+                    filtered_templates = [t for t in filtered_templates if t["category"].value.upper() == cat_value]
+                
+                if selected_difficulty != "ALL":
+                    diff_value = selected_difficulty.upper()
+                    filtered_templates = [t for t in filtered_templates if t["difficulty"].value.upper() == diff_value]
+                
+                # Template selection
+                if filtered_templates:
+                    # Create dropdown options
+                    template_options = {
+                        f"{c['title']} ({c['category'].value.replace('_', ' ').title()} - {c['difficulty'].value.capitalize()})": c['id'] 
+                        for c in filtered_templates
+                    }
+                    
+                    selected_template_name = st.selectbox(
+                        "Select Challenge Template *",
+                        options=list(template_options.keys()),
+                        help="Choose a challenge from the library"
+                    )
+                    
+                    selected_challenge_id = template_options[selected_template_name]
+                    
+                    # Show preview
+                    selected_challenge = next(c for c in filtered_templates if c['id'] == selected_challenge_id)
+                    
+                    with st.expander("📖 Challenge Preview", expanded=False):
+                        st.markdown(f"**{selected_challenge['title']}**")
+                        st.markdown(selected_challenge['description'])
+                        
+                        # Show metadata
+                        col_meta1, col_meta2 = st.columns(2)
+                        with col_meta1:
+                            st.caption(f"**Category:** {selected_challenge['category'].value.replace('_', ' ').title()}")
+                            st.caption(f"**Difficulty:** {selected_challenge['difficulty'].value.capitalize()}")
+                        with col_meta2:
+                            if selected_challenge['estimated_duration']:
+                                duration_min = selected_challenge['estimated_duration'] // 60
+                                st.caption(f"**Estimated Time:** {duration_min} minutes")
+                            if selected_challenge['tags']:
+                                st.caption(f"**Tags:** {', '.join(selected_challenge['tags'][:3])}")
+                        
+                        # Show instructions preview
+                        if selected_challenge['instructions']:
+                            st.markdown("**Instructions:**")
+                            # Show first 300 characters
+                            preview_text = selected_challenge['instructions'][:300]
+                            if len(selected_challenge['instructions']) > 300:
+                                preview_text += "..."
+                            st.text(preview_text)
+                else:
+                    st.warning(f"No templates match your filters ({selected_category}, {selected_difficulty})")
+                    st.info("Try selecting 'ALL' or use Custom Challenge mode.")
+        
+        else:  # Custom Challenge
+            challenge_text = st.text_area(
+                "Challenge Description *",
+                placeholder="Enter the coding challenge or interview question here...\n\nExample:\nWrite a function that finds the two numbers in an array that add up to a target sum.",
+                height=200,
+                help="The challenge or problem the candidate should solve"
+            )
         
         st.markdown("---")
         
@@ -117,11 +239,11 @@ def render():
                     time_limit=time_limit_minutes * 60,  # Convert to seconds
                     token_budget=token_budget,
                     model_name=model_name,
-                    challenge_text=challenge_text.strip() if challenge_text else None
+                    challenge_id=selected_challenge_id,  # Use challenge_id if template selected
+                    challenge_text=challenge_text.strip() if challenge_text else None  # Legacy field for custom
                 )
                 
                 with st.spinner("Creating session..."):
-                    from models import get_db_context
                     with get_db_context() as db:
                         session = service.create_session(config, db)
                         # Extract all data we need while db session is active

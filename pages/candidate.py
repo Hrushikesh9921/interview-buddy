@@ -164,6 +164,7 @@ def render_chat_interface():
                 "id": session.id,
                 "candidate_name": session.candidate_name,
                 "status": session.status,
+                "challenge_id": session.challenge_id,  # Add challenge_id
                 "challenge_text": session.challenge_text,
                 "time_limit": session.time_limit,
                 "token_budget": session.token_budget,
@@ -406,6 +407,12 @@ def render_chat_interface():
             
             st.markdown("---")
             
+            # Challenge display (if any)
+            from components.candidate.challenge_display import render_challenge_panel
+            render_challenge_panel(session_data)
+            
+            st.markdown("---")
+            
             # Resources section
             st.markdown("#### 📊 Resources")
             
@@ -572,6 +579,10 @@ def render_chat_interface():
         
         # Main content area: Chat
         st.markdown("## 💬 Chat")
+        
+        # Challenge Instructions at the top of chat area
+        from components.candidate.challenge_display import render_challenge_instructions
+        render_challenge_instructions(session_data)
         
         # Check if chat should be disabled
         is_expired = timer_info.get("is_expired", False)
