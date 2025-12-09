@@ -65,14 +65,12 @@ def render_challenge_panel(session_data: Dict):
             st.warning("⚠️ Challenge not found")
     
     elif session_data.get("challenge_text"):
-        # Legacy text-only challenge
+        # Custom text-only challenge
         st.markdown("### 📋 Challenge")
         
-        # Display in a styled box
-        st.markdown(
-            f'<div class="challenge-box">{session_data["challenge_text"]}</div>',
-            unsafe_allow_html=True
-        )
+        # Display basic info
+        st.markdown("**Custom Challenge**")
+        st.caption("Custom • Click Problem Statement in chat to view details")
     
     else:
         # No challenge

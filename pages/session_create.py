@@ -14,201 +14,200 @@ def render():
     st.markdown("Set up a new interview session for a candidate.")
     st.markdown("---")
     
-    # Session creation form
-    with st.form("session_create_form"):
-        st.subheader("📋 Candidate Information")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            candidate_name = st.text_input(
-                "Candidate Name *",
-                placeholder="John Doe",
-                help="Full name of the candidate"
-            )
-        
-        with col2:
-            candidate_email = st.text_input(
-                "Candidate Email",
-                placeholder="john@example.com",
-                help="Email address (optional)"
-            )
-        
-        st.markdown("---")
-        st.subheader("⚙️ Session Configuration")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            time_limit_minutes = st.number_input(
-                "Time Limit (minutes) *",
-                min_value=1,
-                max_value=180,
-                value=60,
-                step=1,
-                help="Maximum duration for the interview"
-            )
-        
-        with col2:
-            token_budget = st.number_input(
-                "Token Budget *",
-                min_value=1000,
-                max_value=200000,
-                value=settings.default_token_budget,
-                step=1000,
-                help="Maximum tokens the candidate can use"
-            )
-        
-        # Model selection
-        model_options = ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
-        model_name = st.selectbox(
-            "AI Model *",
-            options=model_options,
-            index=0,
-            help="OpenAI model to use for the interview"
-        )
-        
-        st.markdown("---")
-        st.subheader("📝 Challenge")
-        
-        # Challenge selection mode
-        challenge_mode = st.radio(
-            "Challenge Source",
-            options=["📚 Template Library", "✏️ Custom Challenge"],
-            horizontal=True,
-            help="Select from pre-built templates or create your own challenge"
-        )
-        
-        selected_challenge_id = None
-        challenge_text = None
-        
-        if challenge_mode == "📚 Template Library":
-            # Load challenge service and templates
-            from services import get_challenge_service
-            from config.constants import ChallengeCategory, ChallengeDifficulty
-            
-            challenge_service = get_challenge_service()
-            with get_db_context() as db:
-                all_templates_objs = challenge_service.get_all_templates(db)
-                
-                # Convert to dicts to avoid detached instance errors
-                all_templates = []
-                for t in all_templates_objs:
-                    template_dict = {
-                        "id": t.id,
-                        "title": t.title,
-                        "description": t.description,
-                        "category": t.category,
-                        "difficulty": t.difficulty,
-                        "instructions": t.instructions,
-                        "starter_code": t.starter_code,
-                        "test_cases": t.test_cases,
-                        "tags": t.tags,
-                        "metadata": t.metadata,
-                        "estimated_duration": t.estimated_duration
-                    }
-                    all_templates.append(template_dict)
-            
-            if not all_templates:
-                st.warning("⚠️ No challenge templates found. Run `python scripts/setup_challenges.py` to load templates.")
-                st.info("For now, use Custom Challenge mode.")
-            else:
-                # Category filter
-                col_cat, col_diff = st.columns(2)
-                
-                with col_cat:
-                    categories = ["ALL"] + [c.value.replace('_', ' ').title() for c in ChallengeCategory]
-                    selected_category = st.selectbox(
-                        "Category",
-                        categories,
-                        help="Filter by challenge category"
-                    )
-                
-                with col_diff:
-                    difficulties = ["ALL"] + [d.value.capitalize() for d in ChallengeDifficulty]
-                    selected_difficulty = st.selectbox(
-                        "Difficulty",
-                        difficulties,
-                        help="Filter by difficulty level"
-                    )
-                
-                # Filter templates
-                filtered_templates = all_templates
-                
-                if selected_category != "ALL":
-                    # Convert display name back to enum value
-                    cat_value = selected_category.replace(' ', '_').upper()
-                    filtered_templates = [t for t in filtered_templates if t["category"].value.upper() == cat_value]
-                
-                if selected_difficulty != "ALL":
-                    diff_value = selected_difficulty.upper()
-                    filtered_templates = [t for t in filtered_templates if t["difficulty"].value.upper() == diff_value]
-                
-                # Template selection
-                if filtered_templates:
-                    # Create dropdown options
-                    template_options = {
-                        f"{c['title']} ({c['category'].value.replace('_', ' ').title()} - {c['difficulty'].value.capitalize()})": c['id'] 
-                        for c in filtered_templates
-                    }
-                    
-                    selected_template_name = st.selectbox(
-                        "Select Challenge Template *",
-                        options=list(template_options.keys()),
-                        help="Choose a challenge from the library"
-                    )
-                    
-                    selected_challenge_id = template_options[selected_template_name]
-                    
-                    # Show preview
-                    selected_challenge = next(c for c in filtered_templates if c['id'] == selected_challenge_id)
-                    
-                    with st.expander("📖 Challenge Preview", expanded=False):
-                        st.markdown(f"**{selected_challenge['title']}**")
-                        st.markdown(selected_challenge['description'])
-                        
-                        # Show metadata
-                        col_meta1, col_meta2 = st.columns(2)
-                        with col_meta1:
-                            st.caption(f"**Category:** {selected_challenge['category'].value.replace('_', ' ').title()}")
-                            st.caption(f"**Difficulty:** {selected_challenge['difficulty'].value.capitalize()}")
-                        with col_meta2:
-                            if selected_challenge['estimated_duration']:
-                                duration_min = selected_challenge['estimated_duration'] // 60
-                                st.caption(f"**Estimated Time:** {duration_min} minutes")
-                            if selected_challenge['tags']:
-                                st.caption(f"**Tags:** {', '.join(selected_challenge['tags'][:3])}")
-                        
-                        # Show instructions preview
-                        if selected_challenge['instructions']:
-                            st.markdown("**Instructions:**")
-                            # Show first 300 characters
-                            preview_text = selected_challenge['instructions'][:300]
-                            if len(selected_challenge['instructions']) > 300:
-                                preview_text += "..."
-                            st.text(preview_text)
-                else:
-                    st.warning(f"No templates match your filters ({selected_category}, {selected_difficulty})")
-                    st.info("Try selecting 'ALL' or use Custom Challenge mode.")
-        
-        else:  # Custom Challenge
-            challenge_text = st.text_area(
-                "Challenge Description *",
-                placeholder="Enter the coding challenge or interview question here...\n\nExample:\nWrite a function that finds the two numbers in an array that add up to a target sum.",
-                height=200,
-                help="The challenge or problem the candidate should solve"
-            )
-        
-        st.markdown("---")
-        
-        # Submit button
-        submitted = st.form_submit_button(
-            "🚀 Create Session",
-            use_container_width=True,
-            type="primary"
+    # Candidate Information
+    st.subheader("📋 Candidate Information")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        candidate_name = st.text_input(
+            "Candidate Name *",
+            placeholder="John Doe",
+            help="Full name of the candidate",
+            key="candidate_name_input"
         )
     
-    # Handle form submission
+    with col2:
+        candidate_email = st.text_input(
+            "Candidate Email",
+            placeholder="john@example.com",
+            help="Email address (optional)",
+            key="candidate_email_input"
+        )
+    
+    st.markdown("---")
+    st.subheader("⚙️ Session Configuration")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        time_limit_minutes = st.number_input(
+            "Time Limit (minutes) *",
+            min_value=1,
+            max_value=180,
+            value=60,
+            step=1,
+            help="Maximum duration for the interview",
+            key="time_limit_input"
+        )
+    
+    with col2:
+        token_budget = st.number_input(
+            "Token Budget *",
+            min_value=1000,
+            max_value=200000,
+            value=settings.default_token_budget,
+            step=1000,
+            help="Maximum tokens the candidate can use",
+            key="token_budget_input"
+        )
+    
+    # Model selection
+    model_options = ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
+    model_name = st.selectbox(
+        "AI Model *",
+        options=model_options,
+        index=0,
+        help="OpenAI model to use for the interview",
+        key="model_select"
+    )
+    
+    # Challenge mode selection (OUTSIDE form to allow dynamic rendering)
+    st.markdown("---")
+    st.subheader("📝 Challenge Selection")
+    challenge_mode = st.radio(
+        "Challenge Source",
+        options=["📚 Template Library", "✏️ Custom Challenge"],
+        horizontal=True,
+        key="challenge_mode_select",
+        help="Select from pre-built templates or create your own challenge"
+    )
+    
+    # Template selection (OUTSIDE form for dynamic preview)
+    selected_challenge_id = None
+    challenge_text = None
+    
+    if challenge_mode == "📚 Template Library":
+        from services import get_challenge_service
+        from config.constants import ChallengeCategory, ChallengeDifficulty
+        
+        challenge_service = get_challenge_service()
+        with get_db_context() as db:
+            all_templates_objs = challenge_service.get_all_templates(db)
+            
+            # Convert to dicts to avoid detached instance errors
+            all_templates = []
+            for t in all_templates_objs:
+                template_dict = {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "category": t.category,
+                    "difficulty": t.difficulty,
+                    "instructions": t.instructions,
+                    "starter_code": t.starter_code,
+                    "test_cases": t.test_cases,
+                    "hints": t.hints,
+                    "estimated_duration": t.estimated_duration,
+                    "tags": t.tags
+                }
+                all_templates.append(template_dict)
+        
+        if not all_templates:
+            st.warning("⚠️ No challenge templates found. Run `python scripts/setup_challenges.py` to load templates.")
+            st.info("For now, use Custom Challenge mode.")
+        else:
+            # Category and difficulty filters
+            col_cat, col_diff = st.columns(2)
+            
+            with col_cat:
+                categories = ["ALL"] + [c.value.replace('_', ' ').title() for c in ChallengeCategory]
+                selected_category = st.selectbox(
+                    "Category",
+                    categories,
+                    help="Filter by challenge category",
+                    key="template_category"
+                )
+            
+            with col_diff:
+                difficulties = ["ALL"] + [d.value.capitalize() for d in ChallengeDifficulty]
+                selected_difficulty = st.selectbox(
+                    "Difficulty",
+                    difficulties,
+                    help="Filter by difficulty level",
+                    key="template_difficulty"
+                )
+            
+            # Filter templates
+            filtered_templates = all_templates
+            
+            if selected_category != "ALL":
+                cat_value = selected_category.replace(' ', '_').upper()
+                filtered_templates = [t for t in filtered_templates if t["category"].value.upper() == cat_value]
+            
+            if selected_difficulty != "ALL":
+                diff_value = selected_difficulty.upper()
+                filtered_templates = [t for t in filtered_templates if t["difficulty"].value.upper() == diff_value]
+            
+            if filtered_templates:
+                template_options = {
+                    f"{c['title']} ({c['category'].value.replace('_', ' ').title()} - {c['difficulty'].value.capitalize()})": c['id'] 
+                    for c in filtered_templates
+                }
+                
+                selected_template_name = st.selectbox(
+                    "Select Challenge Template *",
+                    options=list(template_options.keys()),
+                    help="Choose a challenge from the library",
+                    key="template_selector"
+                )
+                
+                selected_challenge_id = template_options[selected_template_name]
+                selected_challenge = next(c for c in filtered_templates if c["id"] == selected_challenge_id)
+                
+                # Show preview
+                with st.expander("📖 Challenge Preview", expanded=True):
+                    st.markdown(f"**{selected_challenge['title']}**")
+                    st.markdown(selected_challenge['description'])
+                    
+                    # Show metadata
+                    col_meta1, col_meta2 = st.columns(2)
+                    with col_meta1:
+                        st.caption(f"**Category:** {selected_challenge['category'].value.replace('_', ' ').title()}")
+                        st.caption(f"**Difficulty:** {selected_challenge['difficulty'].value.capitalize()}")
+                    with col_meta2:
+                        if selected_challenge['estimated_duration']:
+                            duration_min = selected_challenge['estimated_duration'] // 60
+                            st.caption(f"**Estimated Time:** {duration_min} minutes")
+                        if selected_challenge['tags']:
+                            st.caption(f"**Tags:** {', '.join(selected_challenge['tags'][:3])}")
+                    
+                    # Show instructions preview
+                    if selected_challenge['instructions']:
+                        st.markdown("**Instructions Preview:**")
+                        preview_text = selected_challenge['instructions'][:300]
+                        if len(selected_challenge['instructions']) > 300:
+                            preview_text += "..."
+                        st.text(preview_text)
+            else:
+                st.warning(f"No templates match your filters ({selected_category}, {selected_difficulty})")
+                st.info("Try selecting 'ALL' or use Custom Challenge mode.")
+    elif challenge_mode == "✏️ Custom Challenge":
+        # Custom challenge text area
+        challenge_text = st.text_area(
+            "Challenge Description *",
+            placeholder="Enter the coding challenge or interview question here...\n\nExample:\nWrite a function that finds the two numbers in an array that add up to a target sum.",
+            height=200,
+            help="The challenge or problem the candidate should solve",
+            key="custom_challenge_input"
+        )
+    
+    st.markdown("---")
+    
+    # Submit button
+    submitted = st.button("🚀 Create Session", type="primary", use_container_width=True, key="create_session_btn")
+    
+    # Handle session creation
     if submitted:
         # Validation
         errors = []
@@ -224,6 +223,10 @@ def render():
         
         if token_budget < 1000:
             errors.append("Token budget must be at least 1000")
+        
+        # Validate challenge selection
+        if not selected_challenge_id and (not challenge_text or len(challenge_text.strip()) == 0):
+            errors.append("Please select a challenge template or provide a custom challenge description")
         
         if errors:
             for error in errors:
